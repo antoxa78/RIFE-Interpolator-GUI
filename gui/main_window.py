@@ -248,17 +248,28 @@ class MainWindow(QMainWindow):
         if self._current_mode == "video":
             input_path = self._current_input_files[0]
             base = os.path.splitext(os.path.basename(input_path))[0]
-            out_dir = self.config.last_output_dir
-            suffix = settings["format"] if settings["format"] != "png (sequence)" else "mp4"
-            output_path = os.path.join(out_dir, f"{base}_interpolated.{suffix}")
+            out_fmt = settings["format"]
 
-            out_path, _ = QFileDialog.getSaveFileName(
-                self, "Save Output", output_path,
-                "Videos (*.mp4 *.avi *.mov);;All Files (*)"
-            )
-            if not out_path:
-                return
-            self.config.last_output_dir = os.path.dirname(out_path)
+            out_dir = self.config.last_output_dir or os.path.expanduser("~")
+            if not os.path.isdir(out_dir):
+                out_dir = os.path.expanduser("~")
+
+            if out_fmt == "png (sequence)":
+                out_dir = QFileDialog.getExistingDirectory(
+                    self, "Select Output Directory for Frame Sequence", out_dir)
+                if not out_dir:
+                    return
+                output_path = out_dir
+                self.config.last_output_dir = out_dir
+            else:
+                default_name = os.path.join(out_dir, f"{base}_interpolated.{out_fmt}")
+                out_path, _ = QFileDialog.getSaveFileName(
+                    self, "Save Output Video", default_name,
+                    f"Videos (*.{out_fmt});;All Files (*)")
+                if not out_path:
+                    return
+                output_path = out_path
+                self.config.last_output_dir = os.path.dirname(out_path)
         else:
             input_path = self._current_input_files
             out_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")

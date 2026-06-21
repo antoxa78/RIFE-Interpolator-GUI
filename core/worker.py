@@ -88,11 +88,18 @@ class InferenceWorker(QThread):
             auto_fps = orig_fps * (2 ** self.exp)
             speed_note = f" | {auto_fps / max(self.target_fps, 0.01):.1f}x slow-mo" if self.target_fps < auto_fps else ""
 
-        fourcc = cv2.VideoWriter_fourcc(*'avc1')
-        out = cv2.VideoWriter(self.output_path, fourcc, out_fps, (width, height))
-        if not out.isOpened():
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        png_mode = os.path.isdir(self.output_path)
+        out = None
+        frame_counter = [0]
+
+        if png_mode:
+            os.makedirs(self.output_path, exist_ok=True)
+        else:
+            fourcc = cv2.VideoWriter_fourcc(*'avc1')
             out = cv2.VideoWriter(self.output_path, fourcc, out_fps, (width, height))
+            if not out.isOpened():
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                out = cv2.VideoWriter(self.output_path, fourcc, out_fps, (width, height))
 
         write_queue = queue.Queue(maxsize=200)
         write_done = threading.Event()
@@ -103,7 +110,12 @@ class InferenceWorker(QThread):
                     item = write_queue.get()
                     if item is None:
                         break
-                    out.write(item)
+                    if png_mode:
+                        path = os.path.join(self.output_path, f"{frame_counter[0]:08d}.png")
+                        cv2.imwrite(path, item)
+                        frame_counter[0] += 1
+                    else:
+                        out.write(item)
             except Exception:
                 pass
             finally:
@@ -169,7 +181,8 @@ class InferenceWorker(QThread):
             self.status_update.emit("Waiting for writer to finish...")
             writer.join(timeout=60)
 
-        out.release()
+        if out is not None:
+            out.release()
 
         elapsed = time.time() - self._start_time
         if self._cancelled:
