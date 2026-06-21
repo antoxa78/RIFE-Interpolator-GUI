@@ -48,17 +48,26 @@ class InferenceWorker(QThread):
         now = time.time()
         self._frames_since_report += 1
         if now - self._last_report_time >= 2.0:
-            fps = self._frames_since_report / (now - self._last_report_time)
-            eta = (total_pairs - processed) / max(fps, 0.01)
+            current_fps = self._frames_since_report / (now - self._last_report_time)
+            elapsed = now - self._start_time
+            avg_fps = processed / max(elapsed, 0.01)
+            eta = (total_pairs - processed) / max(avg_fps, 0.01)
             device_type = self.engine.device.type.upper()
             self.status_update.emit(
                 f"Frame pair {processed}/{total_pairs} | "
-                f"{fps:.1f} fps | {device_type} | "
-                f"ETA {eta:.0f}s"
+                f"{avg_fps:.1f} fps avg | {device_type} | "
+                f"ETA {self._fmt_time(eta)}"
             )
             self._last_report_time = now
             self._frames_since_report = 0
         self.progress.emit(processed, total_pairs)
+
+    @staticmethod
+    def _fmt_time(seconds):
+        s = max(0, int(seconds))
+        h, m = divmod(s, 3600)
+        m, s = divmod(m, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
 
     def _process_video(self):
         cap = cv2.VideoCapture(self.input_path)
@@ -166,7 +175,7 @@ class InferenceWorker(QThread):
         else:
             self.finished.emit(self.output_path)
             self.status_update.emit(
-                f"Done in {elapsed:.0f}s | "
+                f"Done in {self._fmt_time(elapsed)} | "
                 f"{processed / max(elapsed, 0.01):.1f} fps avg"
             )
 
