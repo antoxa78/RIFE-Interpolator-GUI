@@ -108,6 +108,8 @@ class MainWindow(QMainWindow):
     def _init_statusbar(self):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+        self.avg_fps_label = QLabel("")
+        self.status_bar.addPermanentWidget(self.avg_fps_label)
         self.gpu_label = QLabel(self._gpu_status_text())
         self.status_bar.addPermanentWidget(self.gpu_label)
         self.model_status = QLabel("Model: not loaded")
@@ -282,6 +284,7 @@ class MainWindow(QMainWindow):
         )
         self.worker.progress.connect(self.progress_panel.set_progress)
         self.worker.status_update.connect(self.progress_panel.set_status)
+        self.worker.avg_fps_update.connect(self._on_avg_fps_update)
         self.worker.finished.connect(self._on_finished)
         self.worker.error.connect(self._on_error)
 
@@ -295,7 +298,11 @@ class MainWindow(QMainWindow):
             self.worker.cancel()
             self.progress_panel.set_status("Cancelling...")
 
+    def _on_avg_fps_update(self, text):
+        self.avg_fps_label.setText(text)
+
     def _on_finished(self, result):
+        self.avg_fps_label.setText("")
         self.progress_panel.set_processing(False)
         if result == "cancelled":
             self.status_bar.showMessage("Processing cancelled", 5000)

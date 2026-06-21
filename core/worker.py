@@ -12,6 +12,7 @@ class InferenceWorker(QThread):
     finished = Signal(str)
     error = Signal(str)
     status_update = Signal(str)
+    avg_fps_update = Signal(str)
 
     def __init__(self, engine, input_path, output_path, mode="video",
                  exp=2, scale=1.0, fps=None, TTA=False, parent=None):
@@ -55,9 +56,10 @@ class InferenceWorker(QThread):
             device_type = self.engine.device.type.upper()
             self.status_update.emit(
                 f"Frame pair {processed}/{total_pairs} | "
-                f"{avg_fps:.1f} fps avg | {device_type} | "
+                f"{current_fps:.1f} fps | {device_type} | "
                 f"ETA {self._fmt_time(eta)}"
             )
+            self.avg_fps_update.emit(f"{avg_fps:.1f} fps avg | {self._fmt_time(elapsed)} elapsed")
             self._last_report_time = now
             self._frames_since_report = 0
         self.progress.emit(processed, total_pairs)
