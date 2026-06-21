@@ -263,16 +263,22 @@ class MainWindow(QMainWindow):
                 self.config.last_output_dir = out_dir
             else:
                 default_name = os.path.join(out_dir, f"{base}_interpolated.{out_fmt}")
-                out_path, _ = QFileDialog.getSaveFileName(
+                out_path, selected_filter = QFileDialog.getSaveFileName(
                     self, "Save Output Video", default_name,
-                    f"Videos (*.{out_fmt});;All Files (*)",
-                    options=QFileDialog.DontUseNativeDialog)
+                    f"Videos (*.{out_fmt});;All Files (*)")
                 if not out_path:
+                    self.status_bar.showMessage("Save cancelled", 3000)
                     return
                 if not os.path.splitext(out_path)[1]:
                     out_path += f".{out_fmt}"
+                out_parent = os.path.dirname(out_path)
+                if not os.path.isdir(out_parent):
+                    QMessageBox.critical(self, "Invalid Path",
+                        f"Output directory does not exist:\n{out_parent}")
+                    return
                 output_path = out_path
                 self.config.last_output_dir = os.path.dirname(out_path)
+                self.status_bar.showMessage(f"Output: {os.path.basename(out_path)}", 5000)
         else:
             input_path = self._current_input_files
             out_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
