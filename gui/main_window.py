@@ -265,9 +265,12 @@ class MainWindow(QMainWindow):
                 default_name = os.path.join(out_dir, f"{base}_interpolated.{out_fmt}")
                 out_path, _ = QFileDialog.getSaveFileName(
                     self, "Save Output Video", default_name,
-                    f"Videos (*.{out_fmt});;All Files (*)")
+                    f"Videos (*.{out_fmt});;All Files (*)",
+                    options=QFileDialog.DontUseNativeDialog)
                 if not out_path:
                     return
+                if not os.path.splitext(out_path)[1]:
+                    out_path += f".{out_fmt}"
                 output_path = out_path
                 self.config.last_output_dir = os.path.dirname(out_path)
         else:
