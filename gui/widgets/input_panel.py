@@ -20,7 +20,8 @@ class InputPanel(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(6)
 
         mode_group = QGroupBox("Input Mode")
         mode_layout = QHBoxLayout()
@@ -40,7 +41,7 @@ class InputPanel(QWidget):
         file_layout = QVBoxLayout()
         self.file_list = QListWidget()
         self.file_list.setAcceptDrops(True)
-        self.file_list.setMinimumHeight(120)
+        self.file_list.setMinimumHeight(80)
         file_layout.addWidget(self.file_list)
 
         btn_layout = QHBoxLayout()

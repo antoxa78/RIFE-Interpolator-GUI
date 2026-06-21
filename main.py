@@ -16,24 +16,24 @@ QWidget {
     background-color: #1e1e2e;
     color: #cdd6f4;
     font-family: "Segoe UI", "Ubuntu", "Noto Sans", sans-serif;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 QGroupBox {
     background-color: #262638;
     border: 1px solid #45475a;
-    border-radius: 8px;
-    margin-top: 14px;
-    padding: 16px 12px 12px 12px;
+    border-radius: 6px;
+    margin-top: 12px;
+    padding: 10px 8px 8px 8px;
     font-weight: bold;
-    font-size: 13px;
+    font-size: 12px;
 }
 
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    left: 12px;
-    padding: 0 6px;
+    left: 10px;
+    padding: 0 4px;
     color: #89b4fa;
 }
 
@@ -41,10 +41,10 @@ QPushButton {
     background-color: #45475a;
     color: #cdd6f4;
     border: 1px solid #585b70;
-    border-radius: 6px;
-    padding: 7px 18px;
+    border-radius: 5px;
+    padding: 5px 14px;
     font-weight: bold;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 QPushButton:hover {
@@ -97,18 +97,18 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     background-color: #313244;
     color: #cdd6f4;
     border: 1px solid #45475a;
-    border-radius: 5px;
-    padding: 5px 8px;
-    font-size: 13px;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 12px;
 }
 
 QComboBox::drop-down {
     subcontrol-origin: padding;
     subcontrol-position: top right;
-    width: 20px;
+    width: 18px;
     border-left: 1px solid #45475a;
-    border-top-right-radius: 5px;
-    border-bottom-right-radius: 5px;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
 }
 
 QComboBox QAbstractItemView {
@@ -123,7 +123,7 @@ QSpinBox::up-button, QDoubleSpinBox::up-button,
 QSpinBox::down-button, QDoubleSpinBox::down-button {
     background-color: #45475a;
     border-radius: 3px;
-    width: 16px;
+    width: 14px;
 }
 
 QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover,
@@ -134,30 +134,32 @@ QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {
 QProgressBar {
     background-color: #313244;
     border: 1px solid #45475a;
-    border-radius: 6px;
+    border-radius: 5px;
     text-align: center;
     color: #cdd6f4;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: bold;
-    height: 22px;
+    min-height: 18px;
+    max-height: 18px;
 }
 
 QProgressBar::chunk {
     background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0,
         stop:0 #45475a, stop:0.5 #89b4fa, stop:1 #a6e3a1);
-    border-radius: 5px;
+    border-radius: 4px;
 }
 
 QCheckBox {
-    spacing: 8px;
+    spacing: 6px;
     color: #cdd6f4;
+    font-size: 12px;
 }
 
 QCheckBox::indicator {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border: 2px solid #585b70;
-    border-radius: 4px;
+    border-radius: 3px;
     background-color: #313244;
 }
 
@@ -167,16 +169,17 @@ QCheckBox::indicator:checked {
 }
 
 QRadioButton {
-    spacing: 8px;
+    spacing: 6px;
     color: #cdd6f4;
-    padding: 4px 0;
+    padding: 2px 0;
+    font-size: 12px;
 }
 
 QRadioButton::indicator {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border: 2px solid #585b70;
-    border-radius: 10px;
+    border-radius: 8px;
     background-color: #313244;
 }
 
@@ -187,34 +190,35 @@ QRadioButton::indicator:checked {
 
 QSlider::groove:horizontal {
     background: #313244;
-    height: 6px;
-    border-radius: 3px;
+    height: 5px;
+    border-radius: 2px;
 }
 
 QSlider::handle:horizontal {
     background: #89b4fa;
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     margin: -5px 0;
-    border-radius: 8px;
+    border-radius: 7px;
 }
 
 QSlider::sub-page:horizontal {
     background: #89b4fa;
-    border-radius: 3px;
+    border-radius: 2px;
 }
 
 QListWidget {
     background-color: #313244;
     border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 4px;
+    border-radius: 5px;
+    padding: 2px;
     color: #cdd6f4;
+    font-size: 12px;
 }
 
 QListWidget::item {
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 3px 6px;
+    border-radius: 3px;
 }
 
 QListWidget::item:selected {
@@ -230,18 +234,19 @@ QTextEdit {
     background-color: #181825;
     color: #a6adc8;
     border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 6px;
+    border-radius: 5px;
+    padding: 4px;
     font-family: "JetBrains Mono", "Fira Code", "Monospace", monospace;
-    font-size: 11px;
+    font-size: 10px;
+    max-height: 80px;
 }
 
 QStatusBar {
     background-color: #181825;
     color: #a6adc8;
     border-top: 1px solid #313244;
-    font-size: 12px;
-    padding: 2px 8px;
+    font-size: 11px;
+    padding: 1px 6px;
 }
 
 QStatusBar::item {
@@ -252,7 +257,8 @@ QMenuBar {
     background-color: #181825;
     color: #cdd6f4;
     border-bottom: 1px solid #313244;
-    padding: 2px 4px;
+    padding: 1px 3px;
+    font-size: 12px;
 }
 
 QMenuBar::item:selected {
@@ -264,13 +270,13 @@ QMenu {
     background-color: #262638;
     color: #cdd6f4;
     border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 4px;
+    border-radius: 5px;
+    padding: 3px;
 }
 
 QMenu::item {
-    padding: 6px 24px;
-    border-radius: 4px;
+    padding: 5px 20px;
+    border-radius: 3px;
 }
 
 QMenu::item:selected {
@@ -279,7 +285,7 @@ QMenu::item:selected {
 
 QSplitter::handle {
     background-color: #45475a;
-    width: 2px;
+    width: 1px;
 }
 
 QLabel {
@@ -288,14 +294,14 @@ QLabel {
 
 QScrollBar:vertical {
     background: #1e1e2e;
-    width: 10px;
-    border-radius: 5px;
+    width: 8px;
+    border-radius: 4px;
 }
 
 QScrollBar::handle:vertical {
     background: #45475a;
-    border-radius: 5px;
-    min-height: 20px;
+    border-radius: 4px;
+    min-height: 16px;
 }
 
 QScrollBar::handle:vertical:hover {
@@ -308,14 +314,14 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
 
 QScrollBar:horizontal {
     background: #1e1e2e;
-    height: 10px;
-    border-radius: 5px;
+    height: 8px;
+    border-radius: 4px;
 }
 
 QScrollBar::handle:horizontal {
     background: #45475a;
-    border-radius: 5px;
-    min-width: 20px;
+    border-radius: 4px;
+    min-width: 16px;
 }
 
 QMessageBox {
@@ -336,8 +342,9 @@ QToolTip {
     background-color: #313244;
     color: #cdd6f4;
     border: 1px solid #585b70;
-    border-radius: 4px;
-    padding: 4px 8px;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 11px;
 }
 """
 
@@ -350,7 +357,7 @@ def main():
     app.setStyleSheet(STYLESHEET)
 
     font = app.font()
-    font.setPointSize(10)
+    font.setPointSize(9)
     app.setFont(font)
 
     window = MainWindow()

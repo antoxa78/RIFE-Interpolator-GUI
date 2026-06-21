@@ -11,7 +11,8 @@ class ProgressPanel(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(6)
 
         group = QGroupBox("Processing")
         group_layout = QVBoxLayout()

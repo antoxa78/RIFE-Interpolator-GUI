@@ -15,7 +15,8 @@ class SettingsPanel(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(6)
 
         interp_group = QGroupBox("Interpolation")
         interp_layout = QVBoxLayout()
