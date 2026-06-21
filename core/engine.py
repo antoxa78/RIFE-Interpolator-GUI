@@ -7,11 +7,23 @@ if torch.cuda.is_available():
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
 
+def _check_torch_compile():
+    try:
+        dummy = torch.nn.Linear(1, 1)
+        compiled = torch.compile(dummy, mode="reduce-overhead")
+        compiled(torch.randn(1, 1))
+        return True
+    except Exception:
+        return False
+
+TORCH_COMPILE_AVAILABLE = _check_torch_compile()
+
+
 class InferenceEngine:
     def __init__(self, checkpoint_path=None, device=None, fp16=False, compile_model=False):
         self.device = device if device else self._auto_device()
         self._fp16 = fp16 and self.device.type == 'cuda'
-        self._compile = compile_model and self.device.type == 'cuda'
+        self._compile = compile_model and TORCH_COMPILE_AVAILABLE and self.device.type == 'cuda'
         self.flownet = None
         self._compiled_flownet = None
         if checkpoint_path and os.path.exists(checkpoint_path):
@@ -23,7 +35,7 @@ class InferenceEngine:
 
     @compile_enabled.setter
     def compile_enabled(self, value):
-        value = bool(value) and self.device.type == 'cuda'
+        value = bool(value) and TORCH_COMPILE_AVAILABLE and self.device.type == 'cuda'
         if self._compile != value:
             self._compile = value
             self._compiled_flownet = None
@@ -138,7 +150,11 @@ class InferenceEngine:
     @property
     def _active_flownet(self):
         if self._compile and self._compiled_flownet is None:
-            self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
+            try:
+                self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
+            except Exception:
+                self._compile = False
+                self._compiled_flownet = None
         if self._compiled_flownet is not None:
             return self._compiled_flownet
         return self.flownet

@@ -8,7 +8,7 @@ from PySide6.QtGui import QAction
 import os
 import sys
 
-from core.engine import InferenceEngine
+from core.engine import InferenceEngine, TORCH_COMPILE_AVAILABLE
 from core.worker import InferenceWorker
 from utils.config import AppConfig
 from utils.video_io import get_video_info
@@ -41,9 +41,12 @@ class MainWindow(QMainWindow):
             self.settings_panel.check_fp16.setChecked(False)
             self.settings_panel.check_fp16.setEnabled(False)
 
-        if info["type"] != "cuda":
+        if info["type"] != "cuda" or not TORCH_COMPILE_AVAILABLE:
             self.settings_panel.check_compile.setChecked(False)
             self.settings_panel.check_compile.setEnabled(False)
+            if not TORCH_COMPILE_AVAILABLE and info["type"] == "cuda":
+                self.settings_panel.check_compile.setToolTip(
+                    "torch.compile unavailable — update PyTorch or Python")
 
         loaded = self._try_auto_load_model()
         if not loaded:
