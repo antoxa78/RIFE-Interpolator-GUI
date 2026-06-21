@@ -26,11 +26,7 @@ class InferenceEngine:
         value = bool(value) and self.device.type == 'cuda'
         if self._compile != value:
             self._compile = value
-            if self.flownet is not None:
-                if value:
-                    self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
-                else:
-                    self._compiled_flownet = None
+            self._compiled_flownet = None
 
     @property
     def fp16(self):
@@ -46,8 +42,7 @@ class InferenceEngine:
                     self.flownet.half()
                 else:
                     self.flownet.float()
-                if self._compile:
-                    self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
+                self._compiled_flownet = None
 
     @staticmethod
     def _auto_device():
@@ -121,10 +116,7 @@ class InferenceEngine:
             self.flownet.half()
         self.flownet.eval()
 
-        if self._compile:
-            self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
-
-        # CUDA warmup
+        # CUDA warmup (also triggers lazy torch.compile if enabled)
         if self.device.type == 'cuda':
             with torch.no_grad():
                 dummy = torch.randn(1, 6, 128, 128, device=self.device)
@@ -145,6 +137,8 @@ class InferenceEngine:
 
     @property
     def _active_flownet(self):
+        if self._compile and self._compiled_flownet is None:
+            self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
         if self._compiled_flownet is not None:
             return self._compiled_flownet
         return self.flownet
