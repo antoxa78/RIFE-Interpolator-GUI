@@ -23,8 +23,8 @@ QGroupBox {
     background-color: #262638;
     border: 1px solid #45475a;
     border-radius: 6px;
-    margin-top: 12px;
-    padding: 10px 8px 8px 8px;
+    margin-top: 14px;
+    padding: 12px 10px 10px 10px;
     font-weight: bold;
     font-size: 12px;
 }
@@ -33,7 +33,7 @@ QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     left: 10px;
-    padding: 0 4px;
+    padding: 0 5px;
     color: #89b4fa;
 }
 

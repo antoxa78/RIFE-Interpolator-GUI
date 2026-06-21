@@ -24,6 +24,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("RIFE Interpolator")
         self.setMinimumSize(800, 500)
+        self.resize(1000, 650)
 
         self.config = AppConfig()
         self.engine = InferenceEngine(fp16=self.config.default_fp16)
@@ -76,8 +77,8 @@ class MainWindow(QMainWindow):
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
-        main_layout.setContentsMargins(2, 2, 2, 2)
-        main_layout.setSpacing(2)
+        main_layout.setContentsMargins(4, 4, 4, 4)
+        main_layout.setSpacing(4)
 
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
