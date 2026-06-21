@@ -27,10 +27,8 @@ class ProgressPanel(QWidget):
 
         btn_layout = QHBoxLayout()
         self.btn_process = QPushButton("Start Processing")
-        self.btn_process.setObjectName("btn_process")
         self.btn_process.setEnabled(False)
         self.btn_cancel = QPushButton("Cancel")
-        self.btn_cancel.setObjectName("btn_cancel")
         self.btn_cancel.setEnabled(False)
         btn_layout.addWidget(self.btn_process)
         btn_layout.addWidget(self.btn_cancel)
