@@ -59,7 +59,7 @@ class InferenceWorker(QThread):
                 f"{current_fps:.1f} fps | {device_type} | "
                 f"ETA {self._fmt_time(eta)}"
             )
-            self.avg_fps_update.emit(f"{avg_fps:.1f} fps avg | {self._fmt_time(elapsed)} elapsed")
+            self.avg_fps_update.emit(f"{avg_fps:.1f} fps avg | {self._fmt_time(elapsed)} elapsed |")
             self._last_report_time = now
             self._frames_since_report = 0
         self.progress.emit(processed, total_pairs)
