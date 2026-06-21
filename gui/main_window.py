@@ -294,6 +294,10 @@ class MainWindow(QMainWindow):
         self.engine.fp16 = settings["fp16"]
         self.engine.compile_enabled = settings.get("compile", False)
 
+        QTimer.singleShot(0, lambda: self._do_process(
+            input_path, output_path, exp, scale, fps, settings["tta"]))
+
+    def _do_process(self, input_path, output_path, exp, scale, fps, tta):
         self.worker = InferenceWorker(
             self.engine,
             input_path,
@@ -302,7 +306,7 @@ class MainWindow(QMainWindow):
             exp=exp,
             scale=scale,
             fps=fps,
-            TTA=settings["tta"],
+            TTA=tta,
         )
         self.worker.progress.connect(self.progress_panel.set_progress)
         self.worker.status_update.connect(self.progress_panel.set_status)
