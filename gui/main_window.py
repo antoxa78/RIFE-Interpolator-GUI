@@ -39,8 +39,10 @@ class MainWindow(QMainWindow):
         if info["type"] != "cuda" or not info.get("fp16_supported", False):
             self.settings_panel.check_fp16.setChecked(False)
             self.settings_panel.check_fp16.setEnabled(False)
-        else:
-            self.settings_panel.check_fp16.setToolTip(info.get("fp16_note", ""))
+
+        if info["type"] != "cuda":
+            self.settings_panel.check_compile.setChecked(False)
+            self.settings_panel.check_compile.setEnabled(False)
 
         loaded = self._try_auto_load_model()
         if not loaded:
@@ -266,6 +268,7 @@ class MainWindow(QMainWindow):
         fps = settings["fps"] if self._current_mode == "video" else None
 
         self.engine.fp16 = settings["fp16"]
+        self.engine.compile_enabled = settings.get("compile", False)
 
         self.worker = InferenceWorker(
             self.engine,

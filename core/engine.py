@@ -8,12 +8,29 @@ if torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
 
 class InferenceEngine:
-    def __init__(self, checkpoint_path=None, device=None, fp16=False):
+    def __init__(self, checkpoint_path=None, device=None, fp16=False, compile_model=False):
         self.device = device if device else self._auto_device()
         self._fp16 = fp16 and self.device.type == 'cuda'
+        self._compile = compile_model and self.device.type == 'cuda'
         self.flownet = None
+        self._compiled_flownet = None
         if checkpoint_path and os.path.exists(checkpoint_path):
             self.load_model(checkpoint_path)
+
+    @property
+    def compile_enabled(self):
+        return self._compile
+
+    @compile_enabled.setter
+    def compile_enabled(self, value):
+        value = bool(value) and self.device.type == 'cuda'
+        if self._compile != value:
+            self._compile = value
+            if self.flownet is not None:
+                if value:
+                    self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
+                else:
+                    self._compiled_flownet = None
 
     @property
     def fp16(self):
@@ -29,6 +46,8 @@ class InferenceEngine:
                     self.flownet.half()
                 else:
                     self.flownet.float()
+                if self._compile:
+                    self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
 
     @staticmethod
     def _auto_device():
@@ -102,23 +121,33 @@ class InferenceEngine:
             self.flownet.half()
         self.flownet.eval()
 
+        if self._compile:
+            self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
+
         # CUDA warmup
         if self.device.type == 'cuda':
             with torch.no_grad():
                 dummy = torch.randn(1, 6, 128, 128, device=self.device)
                 if self._fp16:
                     dummy = dummy.half()
-                self.flownet(dummy, [4, 2, 1])
+                self._active_flownet(dummy, [4, 2, 1])
             torch.cuda.synchronize()
 
     def unload_model(self):
         self.flownet = None
+        self._compiled_flownet = None
         if self.device.type == 'cuda':
             torch.cuda.empty_cache()
 
     @property
     def is_loaded(self):
         return self.flownet is not None
+
+    @property
+    def _active_flownet(self):
+        if self._compiled_flownet is not None:
+            return self._compiled_flownet
+        return self.flownet
 
     def _pad_to_multiple(self, img, multiple=32):
         h, w = img.shape[2], img.shape[3]
@@ -161,12 +190,12 @@ class InferenceEngine:
         scale_list = [4.0 / scale, 2.0 / scale, 1.0 / scale]
 
         with torch.no_grad():
-            _, _, merged, _, _, _ = self.flownet(imgs, scale_list)
+            _, _, merged, _, _, _ = self._active_flownet(imgs, scale_list)
             result = merged[2]
             if TTA:
                 with torch.no_grad():
                     imgs_flip = torch.cat((img0.flip(2).flip(3), img1.flip(2).flip(3)), 1)
-                    _, _, merged2, _, _, _ = self.flownet(imgs_flip, scale_list)
+                    _, _, merged2, _, _, _ = self._active_flownet(imgs_flip, scale_list)
                 result = (result + merged2[2].flip(2).flip(3)) / 2
 
         result = self._unpad(result, pad_info)
@@ -188,12 +217,12 @@ class InferenceEngine:
         results = []
         with torch.no_grad():
             for t in timesteps:
-                _, _, merged, _, _, _ = self.flownet(imgs, scale_list, timestep=t)
+                _, _, merged, _, _, _ = self._active_flownet(imgs, scale_list, timestep=t)
                 result = merged[2]
                 if TTA:
                     with torch.no_grad():
                         imgs_flip = torch.cat((img0.flip(2).flip(3), img1.flip(2).flip(3)), 1)
-                        _, _, merged2, _, _, _ = self.flownet(imgs_flip, scale_list, timestep=t)
+                        _, _, merged2, _, _, _ = self._active_flownet(imgs_flip, scale_list, timestep=t)
                     result = (result + merged2[2].flip(2).flip(3)) / 2
                 result = self._unpad(result, pad_info)
                 results.append(self._from_tensor(result))

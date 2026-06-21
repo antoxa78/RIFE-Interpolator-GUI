@@ -81,6 +81,11 @@ class SettingsPanel(QWidget):
         self.check_fp16.setToolTip("Requires NVIDIA GPU with CUDA")
         perf_layout.addWidget(self.check_fp16)
 
+        self.check_compile = QCheckBox("torch.compile (graph fusion)")
+        self.check_compile.setChecked(False)
+        self.check_compile.setToolTip("PyTorch 2.0+ JIT compilation for 10-15% speedup. First run is slower (compilation), then faster.")
+        perf_layout.addWidget(self.check_compile)
+
         self.check_tta = QCheckBox("TTA (test-time augmentation)")
         self.check_tta.setChecked(self.config.default_tta if self.config else False)
         self.check_tta.setToolTip("Enable for higher quality (doubles processing time)")
@@ -96,6 +101,7 @@ class SettingsPanel(QWidget):
         self.spin_fps.valueChanged.connect(self._emit_settings)
         self.combo_format.currentTextChanged.connect(self._emit_settings)
         self.check_fp16.toggled.connect(self._emit_settings)
+        self.check_compile.toggled.connect(self._emit_settings)
         self.check_tta.toggled.connect(self._emit_settings)
         self.check_auto_fps.toggled.connect(self._emit_settings)
 
@@ -128,6 +134,7 @@ class SettingsPanel(QWidget):
             "fps": None if self.check_auto_fps.isChecked() else self.spin_fps.value(),
             "format": self.combo_format.currentText(),
             "fp16": self.check_fp16.isChecked(),
+            "compile": self.check_compile.isChecked(),
             "tta": self.check_tta.isChecked(),
         }
 
