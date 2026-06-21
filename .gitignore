@@ -1,0 +1,12 @@
+*.pyc
+__pycache__/
+*.egg-info/
+build/
+dist/
+venv/
+.eggs/
+*.deb
+checkpoints/*.pkl
+train_log/
+.DS_Store
+__MACOSX/
