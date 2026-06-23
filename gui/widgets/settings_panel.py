@@ -109,10 +109,11 @@ class SettingsPanel(QWidget):
         lbl.setFixedWidth(50)
         fmt_layout.addWidget(lbl)
         self.combo_format = QComboBox()
-        self.combo_format.addItems(["mp4", "avi", "mov", "png (sequence)"])
+        self.combo_format.addItems(["mkv", "mp4", "avi", "mov", "png (sequence)"])
         self.combo_format.setMinimumWidth(120)
         self.combo_format.setToolTip(
             "Output container format.\n"
+            "mkv = recommended (supports all codecs)\n"
             "mp4 = best compatibility\n"
             "png (sequence) = frame-by-frame for editing")
         fmt_layout.addWidget(self.combo_format)
