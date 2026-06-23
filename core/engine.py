@@ -8,6 +8,8 @@ if torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
 
 def _check_torch_compile():
+    if not torch.cuda.is_available():
+        return False
     try:
         dummy = torch.nn.Linear(1, 1)
         compiled = torch.compile(dummy, mode="reduce-overhead")

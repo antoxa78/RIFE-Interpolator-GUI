@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QFileDialog, QMessageBox, QMenuBar, QStatusBar, QLabel, QGroupBox,
-    QPushButton, QMenu
+    QPushButton, QMenu, QScrollArea, QFrame
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction
@@ -48,6 +48,11 @@ class MainWindow(QMainWindow):
                 self.settings_panel.check_compile.setToolTip(
                     "torch.compile unavailable — update PyTorch or Python")
 
+        if info["type"] not in ("cuda", "mps"):
+            self.settings_panel.check_force_cpu.setChecked(True)
+            self.settings_panel.check_force_cpu.setEnabled(False)
+            self.settings_panel.check_force_cpu.setText("CPU mode (no GPU detected)")
+
         loaded = self._try_auto_load_model()
         if not loaded:
             QTimer.singleShot(500, self._offer_download)
@@ -92,7 +97,16 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.input_panel)
 
         self.settings_panel = SettingsPanel(self.config)
-        left_layout.addWidget(self.settings_panel)
+
+        self.settings_panel.setMinimumHeight(self.settings_panel.sizeHint().height())
+
+        scroll = QScrollArea()
+        scroll.setWidget(self.settings_panel)
+        scroll.setWidgetResizable(False)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setFrameShape(QFrame.NoFrame)
+        left_layout.addWidget(scroll)
 
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
@@ -120,6 +134,31 @@ class MainWindow(QMainWindow):
         self.model_status = QLabel("Model: not loaded")
         self.status_bar.addPermanentWidget(self.model_status)
         self.status_bar.showMessage("Ready")
+
+        self._gpu_monitor_timer = QTimer(self)
+        self._gpu_monitor_timer.timeout.connect(self._update_gpu_stats)
+        self._gpu_monitor_timer.start(5000)
+
+    def _update_gpu_stats(self):
+        if self.engine.device.type != "cuda":
+            return
+        try:
+            import subprocess
+            result = subprocess.run(
+                ["nvidia-smi", "--query-gpu=temperature.gpu,utilization.gpu",
+                 "--format=csv,noheader,nounits"],
+                capture_output=True, text=True, timeout=3
+            )
+            if result.returncode == 0:
+                line = result.stdout.strip()
+                if "," in line:
+                    temp, util = line.split(",")
+                    temp = temp.strip()
+                    util = util.strip()
+                    self.gpu_label.setText(
+                        f"GPU: {temp}\u00b0C | {util}%")
+        except Exception:
+            pass
 
     def _gpu_status_text(self):
         info = self.engine.device_info
@@ -297,6 +336,23 @@ class MainWindow(QMainWindow):
         self.engine.fp16 = settings["fp16"]
         self.engine.compile_enabled = settings.get("compile", False)
 
+        num_threads = settings.get("num_threads", 4)
+        force_cpu = settings.get("force_cpu", False)
+        if force_cpu:
+            import torch
+            self.engine.device = torch.device("cpu")
+            if self.engine.flownet is not None:
+                self.engine.flownet.to("cpu")
+        torch.set_num_threads(num_threads)
+
+        encoding = {
+            "codec": settings.get("codec", "h264"),
+            "crf": settings.get("crf", 23),
+            "preset": settings.get("preset", "medium"),
+            "pix_fmt": settings.get("pix_fmt", "yuv420p"),
+            "bit_depth": settings.get("bit_depth", 8),
+        }
+
         self.worker = InferenceWorker(
             self.engine,
             input_path,
@@ -306,6 +362,7 @@ class MainWindow(QMainWindow):
             scale=scale,
             fps=fps,
             TTA=settings["tta"],
+            encoding=encoding,
         )
         self.worker.progress.connect(self.progress_panel.set_progress)
         self.worker.status_update.connect(self.progress_panel.set_status)
@@ -319,7 +376,15 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def _cancel_processing(self):
-        if self.worker and self.worker.isRunning():
+        if not self.worker or not self.worker.isRunning():
+            return
+        reply = QMessageBox.question(
+            self, "Cancel Processing",
+            "Are you sure you want to cancel?\nProgress so far will be lost.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        if reply == QMessageBox.Yes:
             self.worker.cancel()
             self.progress_panel.set_status("Cancelling...")
 
@@ -357,9 +422,12 @@ class MainWindow(QMainWindow):
         # Logo + title row
         top = QHBoxLayout()
         logo_label = QLabel()
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)))), "usr", "share", "icons", "hicolor",
-            "256x256", "apps", "rife-interpolator.png")
+        logo_path = os.path.join(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))), "resources", "icon.png")
+        if not os.path.exists(logo_path):
+            logo_path = os.path.join(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))), "usr", "share", "icons", "hicolor",
+                "256x256", "apps", "rife-interpolator.png")
         if not os.path.exists(logo_path):
             logo_path = os.path.join(
                 "/usr", "share", "icons", "hicolor",

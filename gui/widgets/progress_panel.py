@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
-    QPushButton, QGroupBox, QTextEdit
+    QPushButton, QTextEdit
 )
 from PySide6.QtCore import Qt
 
@@ -11,36 +11,31 @@ class ProgressPanel(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(6)
-
-        group = QGroupBox("Processing")
-        group_layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(4)
 
         self.status_label = QLabel("Ready")
         self.status_label.setWordWrap(True)
-        group_layout.addWidget(self.status_label)
+        layout.addWidget(self.status_label)
 
         self.progress_bar = QProgressBar()
+        self.progress_bar.setFixedHeight(24)
         self.progress_bar.setValue(0)
-        group_layout.addWidget(self.progress_bar)
+        layout.addWidget(self.progress_bar)
 
         btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
         self.btn_process = QPushButton("Start Processing")
         self.btn_process.setEnabled(False)
         self.btn_cancel = QPushButton("Cancel")
         self.btn_cancel.setEnabled(False)
         btn_layout.addWidget(self.btn_process)
         btn_layout.addWidget(self.btn_cancel)
-        group_layout.addLayout(btn_layout)
+        layout.addLayout(btn_layout)
 
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        self.log_text.setMaximumHeight(100)
-        group_layout.addWidget(self.log_text)
-
-        group.setLayout(group_layout)
-        layout.addWidget(group)
+        layout.addWidget(self.log_text)
 
     def set_status(self, text):
         self.status_label.setText(text)

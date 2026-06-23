@@ -20,11 +20,29 @@ class InputPanel(QWidget):
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(6)
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.setSpacing(3)
+
+        self.setStyleSheet("""
+            InputPanel QGroupBox {
+                font-size: 8pt;
+                font-weight: 600;
+                margin-top: 4px;
+                padding-top: 8px;
+            }
+            InputPanel QGroupBox::title {
+                subcontrol-origin: margin;
+                subcontrol-position: top left;
+                padding: 0 3px;
+            }
+            InputPanel QLabel { font-size: 8pt; }
+            InputPanel QPushButton { font-size: 8pt; padding: 2px 6px; }
+            InputPanel QListWidget { font-size: 8pt; }
+        """)
 
         mode_group = QGroupBox("Input Mode")
         mode_layout = QHBoxLayout()
+        mode_layout.setContentsMargins(4, 2, 4, 2)
         self.btn_video = QPushButton("Video")
         self.btn_video.setCheckable(True)
         self.btn_video.setChecked(True)
@@ -39,9 +57,12 @@ class InputPanel(QWidget):
 
         file_group = QGroupBox("Input Files")
         file_layout = QVBoxLayout()
+        file_layout.setContentsMargins(4, 2, 4, 2)
+        file_layout.setSpacing(2)
         self.file_list = QListWidget()
         self.file_list.setAcceptDrops(True)
-        self.file_list.setMinimumHeight(80)
+        self.file_list.setMinimumHeight(40)
+        self.file_list.setMaximumHeight(60)
         file_layout.addWidget(self.file_list)
 
         btn_layout = QHBoxLayout()
@@ -57,13 +78,12 @@ class InputPanel(QWidget):
 
         info_group = QGroupBox("File Info")
         info_layout = QVBoxLayout()
+        info_layout.setContentsMargins(4, 2, 4, 2)
         self.info_label = QLabel("No file selected")
         self.info_label.setWordWrap(True)
         info_layout.addWidget(self.info_label)
         info_group.setLayout(info_layout)
         layout.addWidget(info_group)
-
-        layout.addStretch()
 
     def _set_mode(self, mode):
         self._current_mode = mode

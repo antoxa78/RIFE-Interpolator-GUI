@@ -73,3 +73,59 @@ class AppConfig:
     @default_tta.setter
     def default_tta(self, value):
         self.set("defaults/tta", "true" if value else "false")
+
+    @property
+    def num_threads(self):
+        return int(self.get("cpu/num_threads", 4))
+
+    @num_threads.setter
+    def num_threads(self, value):
+        self.set("cpu/num_threads", int(value))
+
+    @property
+    def force_cpu(self):
+        return self.get("cpu/force_cpu", "false") == "true"
+
+    @force_cpu.setter
+    def force_cpu(self, value):
+        self.set("cpu/force_cpu", "true" if value else "false")
+
+    @property
+    def default_codec(self):
+        return self.get("encoding/codec", "h264")
+
+    @default_codec.setter
+    def default_codec(self, value):
+        self.set("encoding/codec", value)
+
+    @property
+    def default_crf(self):
+        return int(self.get("encoding/crf", 23))
+
+    @default_crf.setter
+    def default_crf(self, value):
+        self.set("encoding/crf", int(value))
+
+    @property
+    def default_preset(self):
+        return self.get("encoding/preset", "medium")
+
+    @default_preset.setter
+    def default_preset(self, value):
+        self.set("encoding/preset", value)
+
+    @property
+    def default_pix_fmt(self):
+        return self.get("encoding/pix_fmt", "yuv420p")
+
+    @default_pix_fmt.setter
+    def default_pix_fmt(self, value):
+        self.set("encoding/pix_fmt", value)
+
+    @property
+    def default_bit_depth(self):
+        return int(self.get("encoding/bit_depth", 8))
+
+    @default_bit_depth.setter
+    def default_bit_depth(self, value):
+        self.set("encoding/bit_depth", int(value))

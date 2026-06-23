@@ -3,9 +3,17 @@ import time
 import traceback
 import queue
 import threading
+import subprocess
 import numpy as np
 import cv2
 from PySide6.QtCore import QThread, Signal
+
+CODEC_MAP = {
+    "h264": ("libx264", "avc1"),
+    "h265 (hevc)": ("libx265", "hevc"),
+    "vp9": ("libvpx-vp9", "VP90"),
+    "av1": ("libaom-av1", "AV01"),
+}
 
 class InferenceWorker(QThread):
     progress = Signal(int, int)
@@ -15,7 +23,7 @@ class InferenceWorker(QThread):
     avg_fps_update = Signal(str)
 
     def __init__(self, engine, input_path, output_path, mode="video",
-                 exp=2, scale=1.0, fps=None, TTA=False, parent=None):
+                 exp=2, scale=1.0, fps=None, TTA=False, encoding=None, parent=None):
         super().__init__(parent)
         self.engine = engine
         self.input_path = input_path
@@ -25,6 +33,7 @@ class InferenceWorker(QThread):
         self.scale = scale
         self.target_fps = fps
         self.TTA = TTA
+        self.encoding = encoding or {}
         self._cancelled = False
         self._start_time = 0
         self._last_report_time = 0
@@ -89,37 +98,76 @@ class InferenceWorker(QThread):
             speed_note = f" | {auto_fps / max(self.target_fps, 0.01):.1f}x slow-mo" if self.target_fps < auto_fps else ""
 
         png_mode = os.path.isdir(self.output_path)
-        out = None
+        ffmpeg_proc = None
         frame_counter = [0]
-
-        if png_mode:
-            os.makedirs(self.output_path, exist_ok=True)
-        else:
-            fourcc = cv2.VideoWriter_fourcc(*'avc1')
-            out = cv2.VideoWriter(self.output_path, fourcc, out_fps, (width, height))
-            if not out.isOpened():
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                out = cv2.VideoWriter(self.output_path, fourcc, out_fps, (width, height))
 
         write_queue = queue.Queue(maxsize=200)
         write_done = threading.Event()
 
-        def _writer_thread():
-            try:
-                while True:
-                    item = write_queue.get()
-                    if item is None:
-                        break
-                    if png_mode:
+        if png_mode:
+            os.makedirs(self.output_path, exist_ok=True)
+
+            def _writer_thread():
+                try:
+                    while True:
+                        item = write_queue.get()
+                        if item is None:
+                            break
                         path = os.path.join(self.output_path, f"{frame_counter[0]:08d}.png")
                         cv2.imwrite(path, item)
                         frame_counter[0] += 1
-                    else:
-                        out.write(item)
-            except Exception:
-                pass
-            finally:
-                write_done.set()
+                except Exception:
+                    pass
+                finally:
+                    write_done.set()
+        else:
+            enc_name = self.encoding.get("codec", "h264")
+            ff_encoder = CODEC_MAP.get(enc_name, ("libx264", "avc1"))[0]
+            crf = self.encoding.get("crf", 23)
+            preset = self.encoding.get("preset", "medium")
+            pix_fmt_base = self.encoding.get("pix_fmt", "yuv420p").replace("yuv", "")
+            bit_depth = self.encoding.get("bit_depth", 8)
+            if bit_depth == 8:
+                pix_fmt = f"yuv{pix_fmt_base}"
+            else:
+                pix_fmt = f"yuv{pix_fmt_base}{bit_depth}le"
+
+            ffmpeg_cmd = [
+                "ffmpeg", "-y",
+                "-f", "rawvideo",
+                "-pix_fmt", "bgr24",
+                "-s", f"{width}x{height}",
+                "-r", str(out_fps),
+                "-i", "-",
+                "-c:v", ff_encoder,
+                "-crf", str(crf),
+                "-preset", preset,
+                "-pix_fmt", pix_fmt,
+                self.output_path
+            ]
+            try:
+                ffmpeg_proc = subprocess.Popen(
+                    ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL
+                )
+            except FileNotFoundError:
+                self.error.emit("FFmpeg not found. Install ffmpeg and try again.")
+                cap.release()
+                return
+
+            def _writer_thread():
+                try:
+                    while True:
+                        item = write_queue.get()
+                        if item is None:
+                            break
+                        ffmpeg_proc.stdin.write(item.tobytes())
+                        frame_counter[0] += 1
+                except Exception:
+                    pass
+                finally:
+                    if ffmpeg_proc and ffmpeg_proc.stdin:
+                        ffmpeg_proc.stdin.close()
+                    write_done.set()
 
         writer = threading.Thread(target=_writer_thread, daemon=True)
         writer.start()
@@ -139,7 +187,6 @@ class InferenceWorker(QThread):
         if not ret:
             self.error.emit("Failed to read first frames")
             cap.release()
-            out.release()
             return
 
         write_queue.put(prev)
@@ -181,8 +228,8 @@ class InferenceWorker(QThread):
             self.status_update.emit("Waiting for writer to finish...")
             writer.join(timeout=60)
 
-        if out is not None:
-            out.release()
+        if ffmpeg_proc is not None:
+            ffmpeg_proc.wait(timeout=30)
 
         elapsed = time.time() - self._start_time
         if self._cancelled:
