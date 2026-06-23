@@ -336,10 +336,10 @@ class MainWindow(QMainWindow):
         self.engine.fp16 = settings["fp16"]
         self.engine.compile_enabled = settings.get("compile", False)
 
+        import torch
         num_threads = settings.get("num_threads", 4)
         force_cpu = settings.get("force_cpu", False)
         if force_cpu:
-            import torch
             self.engine.device = torch.device("cpu")
             if self.engine.flownet is not None:
                 self.engine.flownet.to("cpu")
