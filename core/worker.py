@@ -107,7 +107,8 @@ class InferenceWorker(QThread):
             out_dir = self.output_path
             os.makedirs(out_dir, exist_ok=True)
         else:
-            out_dir = tempfile.mkdtemp(prefix="rife_frames_")
+            tmp_base = self.encoding.get("temp_dir") or None
+            out_dir = tempfile.mkdtemp(prefix="rife_frames_", dir=tmp_base)
 
         write_queue = queue.Queue(maxsize=200)
         write_done = threading.Event()

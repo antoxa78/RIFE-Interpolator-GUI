@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSpinBox,
     QDoubleSpinBox, QComboBox, QCheckBox, QGroupBox, QPushButton,
-    QSlider
+    QSlider, QLineEdit, QFileDialog
 )
 from PySide6.QtCore import Signal, Qt
 
@@ -290,6 +290,33 @@ class SettingsPanel(QWidget):
         cpu_group.setLayout(cpu_layout)
         layout.addWidget(cpu_group)
 
+        tmp_group = QGroupBox("Temp Directory")
+        tmp_layout = QHBoxLayout()
+        tmp_layout.setContentsMargins(4, 2, 4, 2)
+        tmp_layout.setSpacing(4)
+
+        self.edit_temp_dir = QLineEdit()
+        self.edit_temp_dir.setText(self.config.temp_dir if self.config else "")
+        self.edit_temp_dir.setPlaceholderText("Leave empty for system default (/tmp)")
+        self.edit_temp_dir.setToolTip(
+            "Directory for caching interpolated frames as PNGs\n"
+            "during processing. Requires free space (GB+).\n"
+            "Default: system temp (/tmp).")
+        tmp_layout.addWidget(self.edit_temp_dir, 1)
+
+        self.btn_browse_temp = QPushButton("Browse...")
+        self.btn_browse_temp.setToolTip("Choose a directory for temp frame cache")
+        self.btn_browse_temp.clicked.connect(self._on_browse_temp)
+        tmp_layout.addWidget(self.btn_browse_temp)
+
+        self.btn_clear_temp = QPushButton("Clear")
+        self.btn_clear_temp.setToolTip("Reset to system default")
+        self.btn_clear_temp.clicked.connect(self._on_clear_temp)
+        tmp_layout.addWidget(self.btn_clear_temp)
+
+        tmp_group.setLayout(tmp_layout)
+        layout.addWidget(tmp_group)
+
         self.spin_exp.valueChanged.connect(self._emit_settings)
         self.spin_scale.valueChanged.connect(self._emit_settings)
         self.spin_fps.valueChanged.connect(self._emit_settings)
@@ -307,6 +334,7 @@ class SettingsPanel(QWidget):
         self.combo_pix_fmt.currentTextChanged.connect(self._emit_settings)
         self.combo_bit_depth.currentTextChanged.connect(self._emit_settings)
         self.check_lossless.toggled.connect(self._emit_settings)
+        self.edit_temp_dir.textChanged.connect(self._emit_settings)
 
     def _on_auto_fps_toggled(self, checked):
         self.spin_fps.setEnabled(not checked)
@@ -333,6 +361,17 @@ class SettingsPanel(QWidget):
 
     def _on_lossless_toggled(self, checked):
         self._update_encoding_enabled()
+
+    def _on_browse_temp(self):
+        path = QFileDialog.getExistingDirectory(self, "Select Temp Directory",
+                                                  self.edit_temp_dir.text() or "/tmp")
+        if path:
+            self.edit_temp_dir.setText(path)
+            self._emit_settings()
+
+    def _on_clear_temp(self):
+        self.edit_temp_dir.clear()
+        self._emit_settings()
 
     def _on_codec_changed(self, codec):
         if codec == "ffv1":
@@ -365,6 +404,7 @@ class SettingsPanel(QWidget):
             "pix_fmt": self.combo_pix_fmt.currentText(),
             "bit_depth": int(self.combo_bit_depth.currentText()),
             "lossless": self.check_lossless.isChecked(),
+            "temp_dir": self.edit_temp_dir.text().strip(),
         }
 
     def set_video_info(self, info):

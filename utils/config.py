@@ -137,3 +137,11 @@ class AppConfig:
     @default_lossless.setter
     def default_lossless(self, value):
         self.set("encoding/lossless", "true" if value else "false")
+
+    @property
+    def temp_dir(self):
+        return self.get("paths/temp_dir", "")
+
+    @temp_dir.setter
+    def temp_dir(self, value):
+        self.set("paths/temp_dir", value)
