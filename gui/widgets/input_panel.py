@@ -92,7 +92,7 @@ class InputPanel(QWidget):
         if self._current_mode == "video":
             path, _ = QFileDialog.getOpenFileName(
                 self, "Select Video", last_dir,
-                "Videos (*.mp4 *.avi *.mov *.mkv *.webm *.gif);;All Files (*)"
+                "Videos (*.mp4 *.MP4 *.avi *.AVI *.mov *.MOV *.mkv *.MKV *.webm *.WEBM *.gif *.GIF);;All Files (*)"
             )
             if path:
                 self._set_files([path])
