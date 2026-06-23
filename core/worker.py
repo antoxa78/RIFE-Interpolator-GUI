@@ -4,6 +4,8 @@ import traceback
 import queue
 import threading
 import subprocess
+import tempfile
+import shutil
 import numpy as np
 import cv2
 from PySide6.QtCore import QThread, Signal
@@ -13,6 +15,7 @@ CODEC_MAP = {
     "h265 (hevc)": ("libx265", "hevc"),
     "vp9": ("libvpx-vp9", "VP90"),
     "av1": ("libaom-av1", "AV01"),
+    "ffv1": ("ffv1", "FFV1"),
 }
 
 class InferenceWorker(QThread):
@@ -98,81 +101,34 @@ class InferenceWorker(QThread):
             speed_note = f" | {auto_fps / max(self.target_fps, 0.01):.1f}x slow-mo" if self.target_fps < auto_fps else ""
 
         png_mode = os.path.isdir(self.output_path)
-        ffmpeg_proc = None
         frame_counter = [0]
+
+        if png_mode:
+            out_dir = self.output_path
+            os.makedirs(out_dir, exist_ok=True)
+        else:
+            out_dir = tempfile.mkdtemp(prefix="rife_frames_")
 
         write_queue = queue.Queue(maxsize=200)
         write_done = threading.Event()
 
-        if png_mode:
-            os.makedirs(self.output_path, exist_ok=True)
-
-            def _writer_thread():
-                try:
-                    while True:
-                        item = write_queue.get()
-                        if item is None:
-                            break
-                        path = os.path.join(self.output_path, f"{frame_counter[0]:08d}.png")
-                        cv2.imwrite(path, item)
-                        frame_counter[0] += 1
-                except Exception:
-                    pass
-                finally:
-                    write_done.set()
-        else:
-            enc_name = self.encoding.get("codec", "h264")
-            ff_encoder = CODEC_MAP.get(enc_name, ("libx264", "avc1"))[0]
-            crf = self.encoding.get("crf", 23)
-            preset = self.encoding.get("preset", "medium")
-            pix_fmt_base = self.encoding.get("pix_fmt", "yuv420p").replace("yuv", "")
-            bit_depth = self.encoding.get("bit_depth", 8)
-            if bit_depth == 8:
-                pix_fmt = f"yuv{pix_fmt_base}"
-            else:
-                pix_fmt = f"yuv{pix_fmt_base}{bit_depth}le"
-
-            ffmpeg_cmd = [
-                "ffmpeg", "-y",
-                "-f", "rawvideo",
-                "-pix_fmt", "bgr24",
-                "-s", f"{width}x{height}",
-                "-r", str(out_fps),
-                "-i", "-",
-                "-c:v", ff_encoder,
-                "-crf", str(crf),
-                "-preset", preset,
-                "-pix_fmt", pix_fmt,
-                self.output_path
-            ]
+        def _writer_thread():
             try:
-                ffmpeg_proc = subprocess.Popen(
-                    ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.DEVNULL
-                )
-            except FileNotFoundError:
-                self.error.emit("FFmpeg not found. Install ffmpeg and try again.")
-                cap.release()
-                return
-
-            def _writer_thread():
-                try:
-                    while True:
-                        item = write_queue.get()
-                        if item is None:
-                            break
-                        ffmpeg_proc.stdin.write(item.tobytes())
-                        frame_counter[0] += 1
-                except Exception:
-                    pass
-                finally:
-                    if ffmpeg_proc and ffmpeg_proc.stdin:
-                        ffmpeg_proc.stdin.close()
-                    write_done.set()
+                while True:
+                    item = write_queue.get()
+                    if item is None:
+                        break
+                    path = os.path.join(out_dir, f"{frame_counter[0]:08d}.png")
+                    cv2.imwrite(path, item)
+                    frame_counter[0] += 1
+            except Exception:
+                pass
+            finally:
+                write_done.set()
 
         writer = threading.Thread(target=_writer_thread, daemon=True)
         writer.start()
 
-        # Diagnostic: check actual model device
         import torch
         first_param = next(self.engine.flownet.parameters())
         actual_device = str(first_param.device)
@@ -187,6 +143,8 @@ class InferenceWorker(QThread):
         if not ret:
             self.error.emit("Failed to read first frames")
             cap.release()
+            if not png_mode:
+                shutil.rmtree(out_dir, ignore_errors=True)
             return
 
         write_queue.put(prev)
@@ -228,18 +186,82 @@ class InferenceWorker(QThread):
             self.status_update.emit("Waiting for writer to finish...")
             writer.join(timeout=60)
 
-        if ffmpeg_proc is not None:
-            ffmpeg_proc.wait(timeout=30)
-
         elapsed = time.time() - self._start_time
+
         if self._cancelled:
+            if not png_mode:
+                shutil.rmtree(out_dir, ignore_errors=True)
             self.finished.emit("cancelled")
-        else:
+            return
+
+        if png_mode:
             self.finished.emit(self.output_path)
             self.status_update.emit(
                 f"Done in {self._fmt_time(elapsed)} | "
                 f"{processed / max(elapsed, 0.01):.1f} fps avg"
             )
+            return
+
+        # Encode PNG sequence to video
+        self.status_update.emit("Encoding video...")
+        encode_start = time.time()
+
+        enc_name = self.encoding.get("codec", "h264")
+        ff_encoder = CODEC_MAP.get(enc_name, ("libx264", "avc1"))[0]
+        crf = self.encoding.get("crf", 23)
+        preset = self.encoding.get("preset", "medium")
+        pix_fmt_base = self.encoding.get("pix_fmt", "yuv420p").replace("yuv", "")
+        bit_depth = self.encoding.get("bit_depth", 8)
+        lossless = self.encoding.get("lossless", False)
+
+        lossless_extra = []
+        if lossless:
+            crf = 0
+            pix_fmt_base = "444p"
+            bit_depth = 8
+            if ff_encoder == "libx265":
+                lossless_extra = ["-x265-params", "lossless=1"]
+            elif ff_encoder in ("libvpx-vp9", "libaom-av1"):
+                lossless_extra = ["-lossless", "1"]
+
+        pix_fmt = "bgr0" if ff_encoder == "ffv1" else (
+            f"yuv{pix_fmt_base}" if bit_depth == 8 else f"yuv{pix_fmt_base}{bit_depth}le"
+        )
+
+        input_pattern = os.path.join(out_dir, "%08d.png")
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-f", "image2",
+            "-framerate", str(out_fps),
+            "-i", input_pattern,
+            "-c:v", ff_encoder,
+        ]
+        if ff_encoder != "ffv1":
+            ffmpeg_cmd += ["-crf", str(crf), "-preset", preset]
+        ffmpeg_cmd += ["-pix_fmt", pix_fmt] + lossless_extra + [self.output_path]
+
+        try:
+            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                self.error.emit(f"FFmpeg encoding failed:\n{result.stderr}")
+                shutil.rmtree(out_dir, ignore_errors=True)
+                return
+        except FileNotFoundError:
+            self.error.emit("FFmpeg not found. Install ffmpeg and try again.")
+            shutil.rmtree(out_dir, ignore_errors=True)
+            return
+
+        shutil.rmtree(out_dir, ignore_errors=True)
+
+        encode_time = time.time() - encode_start
+        total_time = time.time() - self._start_time
+        self.finished.emit(self.output_path)
+        self.status_update.emit(
+            f"Done in {self._fmt_time(total_time)} "
+            f"(inference: {self._fmt_time(elapsed)} | "
+            f"encode: {self._fmt_time(encode_time)}) | "
+            f"{processed / max(elapsed, 0.01):.1f} fps avg"
+        )
 
     def _process_images(self):
         img0 = cv2.imread(self.input_path[0])

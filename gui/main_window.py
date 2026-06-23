@@ -351,6 +351,7 @@ class MainWindow(QMainWindow):
             "preset": settings.get("preset", "medium"),
             "pix_fmt": settings.get("pix_fmt", "yuv420p"),
             "bit_depth": settings.get("bit_depth", 8),
+            "lossless": settings.get("lossless", False),
         }
 
         self.worker = InferenceWorker(

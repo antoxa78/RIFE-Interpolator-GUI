@@ -25,7 +25,6 @@ class InputPanel(QWidget):
 
         self.setStyleSheet("""
             InputPanel QGroupBox {
-                font-size: 8pt;
                 font-weight: 600;
                 margin-top: 4px;
                 padding-top: 8px;
@@ -35,9 +34,6 @@ class InputPanel(QWidget):
                 subcontrol-position: top left;
                 padding: 0 3px;
             }
-            InputPanel QLabel { font-size: 8pt; }
-            InputPanel QPushButton { font-size: 8pt; padding: 2px 6px; }
-            InputPanel QListWidget { font-size: 8pt; }
         """)
 
         mode_group = QGroupBox("Input Mode")

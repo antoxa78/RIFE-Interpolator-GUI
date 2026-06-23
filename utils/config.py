@@ -129,3 +129,11 @@ class AppConfig:
     @default_bit_depth.setter
     def default_bit_depth(self, value):
         self.set("encoding/bit_depth", int(value))
+
+    @property
+    def default_lossless(self):
+        return self.get("encoding/lossless", "false") == "true"
+
+    @default_lossless.setter
+    def default_lossless(self, value):
+        self.set("encoding/lossless", "true" if value else "false")

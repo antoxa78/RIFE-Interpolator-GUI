@@ -21,7 +21,6 @@ class SettingsPanel(QWidget):
 
         self.setStyleSheet("""
             QGroupBox {
-                font-size: 9pt;
                 font-weight: 600;
                 margin-top: 6px;
                 padding-top: 10px;
@@ -31,12 +30,6 @@ class SettingsPanel(QWidget):
                 subcontrol-position: top left;
                 padding: 0 4px;
             }
-            QLabel { font-size: 8pt; }
-            QSpinBox, QDoubleSpinBox, QComboBox, QSlider {
-                font-size: 8pt;
-            }
-            QCheckBox { font-size: 8pt; }
-            QPushButton { font-size: 8pt; }
         """)
 
         interp_group = QGroupBox("Interpolation")
@@ -130,13 +123,15 @@ class SettingsPanel(QWidget):
         layout.addWidget(output_group)
 
         enc_group = QGroupBox("Encoding")
+        enc_vlayout = QVBoxLayout()
+        enc_vlayout.setSpacing(2)
         enc_layout = QHBoxLayout()
         enc_layout.setSpacing(4)
 
         lbl = QLabel("Codec:")
         enc_layout.addWidget(lbl)
         self.combo_codec = QComboBox()
-        self.combo_codec.addItems(["h264", "h265 (hevc)", "vp9", "av1"])
+        self.combo_codec.addItems(["h264", "h265 (hevc)", "vp9", "av1", "ffv1"])
         idx = self.combo_codec.findText(self.config.default_codec if self.config else "h264")
         if idx >= 0:
             self.combo_codec.setCurrentIndex(idx)
@@ -146,7 +141,8 @@ class SettingsPanel(QWidget):
             "h264 — best compatibility, small files\n"
             "h265 — 50% smaller at same quality\n"
             "vp9 — web-optimized (YouTube)\n"
-            "av1 — next-gen, best compression")
+            "av1 — next-gen, best compression\n"
+            "ffv1 — mathematically lossless, archival")
         enc_layout.addWidget(self.combo_codec)
 
         lbl = QLabel("CRF:")
@@ -211,7 +207,21 @@ class SettingsPanel(QWidget):
             "12-bit = 68B colors (pro mastering)")
         enc_layout.addWidget(self.combo_bit_depth)
 
-        enc_group.setLayout(enc_layout)
+        enc_vlayout.addLayout(enc_layout)
+
+        lossless_row = QHBoxLayout()
+        self.check_lossless = QCheckBox("Lossless (no compression)")
+        self.check_lossless.setChecked(self.config.default_lossless if self.config else False)
+        self.check_lossless.setToolTip(
+            "Save video without any quality loss.\n"
+            "Uses CRF 0 and full chroma (4:4:4).\n"
+            "Produces very large files — only for archival.")
+        self.check_lossless.toggled.connect(self._on_lossless_toggled)
+        lossless_row.addWidget(self.check_lossless)
+        lossless_row.addStretch()
+        enc_vlayout.addLayout(lossless_row)
+
+        enc_group.setLayout(enc_vlayout)
         layout.addWidget(enc_group)
 
         perf_group = QGroupBox("Performance")
@@ -290,11 +300,13 @@ class SettingsPanel(QWidget):
         self.check_auto_fps.toggled.connect(self._emit_settings)
         self.spin_threads.valueChanged.connect(self._emit_settings)
         self.check_force_cpu.toggled.connect(self._emit_settings)
+        self.combo_codec.currentTextChanged.connect(self._on_codec_changed)
         self.combo_codec.currentTextChanged.connect(self._emit_settings)
         self.slider_crf.valueChanged.connect(self._on_crf_changed)
         self.combo_preset.currentTextChanged.connect(self._emit_settings)
         self.combo_pix_fmt.currentTextChanged.connect(self._emit_settings)
         self.combo_bit_depth.currentTextChanged.connect(self._emit_settings)
+        self.check_lossless.toggled.connect(self._emit_settings)
 
     def _on_auto_fps_toggled(self, checked):
         self.spin_fps.setEnabled(not checked)
@@ -319,6 +331,20 @@ class SettingsPanel(QWidget):
         self.label_crf.setText(str(val))
         self._emit_settings()
 
+    def _on_lossless_toggled(self, checked):
+        self._update_encoding_enabled()
+
+    def _on_codec_changed(self, codec):
+        if codec == "ffv1":
+            self.check_lossless.setChecked(True)
+
+    def _update_encoding_enabled(self):
+        disabled = self.check_lossless.isChecked() or self.combo_codec.currentText() == "ffv1"
+        self.slider_crf.setEnabled(not disabled)
+        self.combo_preset.setEnabled(not disabled)
+        self.combo_pix_fmt.setEnabled(not disabled)
+        self.combo_bit_depth.setEnabled(not disabled)
+
     def _emit_settings(self):
         self.settings_changed.emit(self.get_settings())
 
@@ -338,6 +364,7 @@ class SettingsPanel(QWidget):
             "preset": self.combo_preset.currentText(),
             "pix_fmt": self.combo_pix_fmt.currentText(),
             "bit_depth": int(self.combo_bit_depth.currentText()),
+            "lossless": self.check_lossless.isChecked(),
         }
 
     def set_video_info(self, info):
