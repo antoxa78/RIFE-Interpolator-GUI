@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import traceback
 import queue
@@ -206,6 +207,7 @@ class InferenceWorker(QThread):
         # Encode PNG sequence to video
         self.status_update.emit("Encoding video...")
         encode_start = time.time()
+        total_encode_frames = frame_counter[0]
 
         enc_name = self.encoding.get("codec", "h264")
         ff_encoder = CODEC_MAP.get(enc_name, ("libx264", "avc1"))[0]
@@ -242,14 +244,46 @@ class InferenceWorker(QThread):
         ffmpeg_cmd += ["-pix_fmt", pix_fmt] + lossless_extra + [self.output_path]
 
         try:
-            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-            if result.returncode != 0:
-                self.error.emit(f"FFmpeg encoding failed:\n{result.stderr}")
-                shutil.rmtree(out_dir, ignore_errors=True)
-                return
+            ffmpeg_proc = subprocess.Popen(
+                ffmpeg_cmd, stderr=subprocess.PIPE, text=True
+            )
         except FileNotFoundError:
             self.error.emit("FFmpeg not found. Install ffmpeg and try again.")
             shutil.rmtree(out_dir, ignore_errors=True)
+            return
+
+        frame_re = re.compile(r"frame=\s*(\d+)")
+        fps_re = re.compile(r"fps=\s*([\d.]+)")
+        progress_re = re.compile(r"progress=\s*(\w+)")
+        last_report = time.time()
+
+        for line in ffmpeg_proc.stderr:
+            if self._cancelled:
+                ffmpeg_proc.kill()
+                break
+            m = frame_re.search(line)
+            if m:
+                encoded = int(m.group(1))
+                pct = encoded * 100 // max(total_encode_frames, 1)
+                mf = fps_re.search(line)
+                fps_str = mf.group(1) if mf else "?"
+                now = time.time()
+                if now - last_report >= 1.0 or progress_re.search(line):
+                    self.status_update.emit(
+                        f"Encoding: {pct}% ({encoded}/{total_encode_frames}) | "
+                        f"{fps_str} fps"
+                    )
+                    last_report = now
+
+        ffmpeg_proc.wait()
+        if ffmpeg_proc.returncode != 0 and not self._cancelled:
+            self.error.emit(f"FFmpeg encoding failed (code {ffmpeg_proc.returncode})")
+            shutil.rmtree(out_dir, ignore_errors=True)
+            return
+
+        if self._cancelled:
+            shutil.rmtree(out_dir, ignore_errors=True)
+            self.finished.emit("cancelled")
             return
 
         shutil.rmtree(out_dir, ignore_errors=True)
