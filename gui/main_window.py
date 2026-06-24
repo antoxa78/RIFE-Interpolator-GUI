@@ -174,14 +174,14 @@ class MainWindow(QMainWindow):
         checkpoint_dir = os.path.expanduser(self.config.checkpoint_path)
         os.makedirs(checkpoint_dir, exist_ok=True)
 
-        # Scan for .pkl files in checkpoint dir
+        # Recursively scan for .pkl files
         pkl_files = []
         if os.path.isdir(checkpoint_dir):
-            pkl_files = sorted([
-                os.path.join(checkpoint_dir, f)
-                for f in os.listdir(checkpoint_dir)
-                if f.endswith(".pkl")
-            ], key=os.path.getmtime, reverse=True)
+            for root, _, files in os.walk(checkpoint_dir):
+                for f in files:
+                    if f.endswith(".pkl"):
+                        pkl_files.append(os.path.join(root, f))
+            pkl_files.sort(key=os.path.getmtime, reverse=True)
 
         if pkl_files:
             ckpt_file = pkl_files[0]
