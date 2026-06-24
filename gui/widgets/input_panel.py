@@ -57,8 +57,8 @@ class InputPanel(QWidget):
         file_layout.setSpacing(2)
         self.file_list = QListWidget()
         self.file_list.setAcceptDrops(True)
-        self.file_list.setMinimumHeight(40)
-        self.file_list.setMaximumHeight(60)
+        self.file_list.setMinimumHeight(80)
+        self.file_list.setMaximumHeight(160)
         file_layout.addWidget(self.file_list)
 
         btn_layout = QHBoxLayout()

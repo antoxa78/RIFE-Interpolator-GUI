@@ -2,7 +2,7 @@
 set -e
 
 APP_NAME="rife-interpolator"
-VERSION="1.1.2"
+VERSION="1.1.3"
 ARCH="amd64"
 PKG_NAME="${APP_NAME}_${VERSION}_${ARCH}"
 
@@ -37,9 +37,9 @@ VERSION = "${VERSION}"
 BUILD_DATE = "${BUILD_DATE}"
 BUILDEOF
 
-cat > "${PKG_DIR}/DEBIAN/control" << 'CONTROL'
+cat > "${PKG_DIR}/DEBIAN/control" << CONTROL
 Package: rife-interpolator
-Version: 1.1.2
+Version: ${VERSION}
 Architecture: amd64
 Maintainer: RIFE Interpolator Team
 Depends: python3 (>= 3.10), python3-venv, python3-pip, python3-dev, ffmpeg

@@ -11,9 +11,10 @@ def _check_torch_compile():
     if not torch.cuda.is_available():
         return False
     try:
-        dummy = torch.nn.Linear(1, 1)
-        compiled = torch.compile(dummy, mode="reduce-overhead")
-        compiled(torch.randn(1, 1))
+        device = torch.device("cuda")
+        dummy = torch.nn.Linear(1, 1).to(device)
+        compiled = torch.compile(dummy)
+        compiled(torch.randn(1, 1, device=device))
         return True
     except Exception:
         return False
@@ -25,9 +26,10 @@ class InferenceEngine:
     def __init__(self, checkpoint_path=None, device=None, fp16=False, compile_model=False):
         self.device = device if device else self._auto_device()
         self._fp16 = fp16 and self.device.type == 'cuda'
-        self._compile = compile_model and TORCH_COMPILE_AVAILABLE and self.device.type == 'cuda'
+        self._compile = compile_model and self.device.type == 'cuda'
         self.flownet = None
         self._compiled_flownet = None
+        self.compile_failed_callback = None
         if checkpoint_path and os.path.exists(checkpoint_path):
             self.load_model(checkpoint_path)
 
@@ -37,7 +39,7 @@ class InferenceEngine:
 
     @compile_enabled.setter
     def compile_enabled(self, value):
-        value = bool(value) and TORCH_COMPILE_AVAILABLE and self.device.type == 'cuda'
+        value = bool(value) and self.device.type == 'cuda'
         if self._compile != value:
             self._compile = value
             self._compiled_flownet = None
@@ -153,10 +155,12 @@ class InferenceEngine:
     def _active_flownet(self):
         if self._compile and self._compiled_flownet is None:
             try:
-                self._compiled_flownet = torch.compile(self.flownet, mode="reduce-overhead")
-            except Exception:
+                self._compiled_flownet = torch.compile(self.flownet)
+            except Exception as e:
                 self._compile = False
                 self._compiled_flownet = None
+                if self.compile_failed_callback:
+                    self.compile_failed_callback(str(e))
         if self._compiled_flownet is not None:
             return self._compiled_flownet
         return self.flownet

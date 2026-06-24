@@ -8,7 +8,7 @@ from PySide6.QtGui import QAction
 import os
 import sys
 
-from core.engine import InferenceEngine, TORCH_COMPILE_AVAILABLE
+from core.engine import InferenceEngine
 from core.worker import InferenceWorker
 from utils.config import AppConfig
 from utils.video_io import get_video_info
@@ -41,12 +41,9 @@ class MainWindow(QMainWindow):
             self.settings_panel.check_fp16.setChecked(False)
             self.settings_panel.check_fp16.setEnabled(False)
 
-        if info["type"] != "cuda" or not TORCH_COMPILE_AVAILABLE:
+        if info["type"] != "cuda":
             self.settings_panel.check_compile.setChecked(False)
             self.settings_panel.check_compile.setEnabled(False)
-            if not TORCH_COMPILE_AVAILABLE and info["type"] == "cuda":
-                self.settings_panel.check_compile.setToolTip(
-                    "torch.compile unavailable — update PyTorch or Python")
 
         if info["type"] not in ("cuda", "mps"):
             self.settings_panel.check_force_cpu.setChecked(True)
@@ -371,6 +368,7 @@ class MainWindow(QMainWindow):
         self.worker.avg_fps_update.connect(self._on_avg_fps_update)
         self.worker.finished.connect(self._on_finished)
         self.worker.error.connect(self._on_error)
+        self.worker.compile_failed.connect(self._on_compile_failed)
 
         self.progress_panel.set_processing(True)
         self.progress_panel.log_text.clear()
@@ -410,9 +408,12 @@ class MainWindow(QMainWindow):
         self.progress_panel.log(message)
         QMessageBox.critical(self, "Processing Error", message)
 
+    def _on_compile_failed(self, message):
+        self.progress_panel.log(message)
+
     def _show_about(self):
         from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout
-        from PySide6.QtGui import QPixmap
+        from PySide6.QtGui import QPixmap, QIcon
         from PySide6.QtCore import Qt
 
         dialog = QDialog(self)
@@ -424,18 +425,9 @@ class MainWindow(QMainWindow):
         # Logo + title row
         top = QHBoxLayout()
         logo_label = QLabel()
-        logo_path = os.path.join(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__))), "resources", "icon.png")
-        if not os.path.exists(logo_path):
-            logo_path = os.path.join(os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__))), "usr", "share", "icons", "hicolor",
-                "256x256", "apps", "rife-interpolator.png")
-        if not os.path.exists(logo_path):
-            logo_path = os.path.join(
-                "/usr", "share", "icons", "hicolor",
-                "256x256", "apps", "rife-interpolator.png")
-        if os.path.exists(logo_path):
-            pix = QPixmap(logo_path).scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        icon = QIcon.fromTheme("rife-interpolator")
+        if not icon.isNull():
+            pix = icon.pixmap(64, 64)
             logo_label.setPixmap(pix)
         top.addWidget(logo_label)
 

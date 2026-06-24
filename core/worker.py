@@ -25,11 +25,13 @@ class InferenceWorker(QThread):
     error = Signal(str)
     status_update = Signal(str)
     avg_fps_update = Signal(str)
+    compile_failed = Signal(str)
 
     def __init__(self, engine, input_path, output_path, mode="video",
                  exp=2, scale=1.0, fps=None, TTA=False, encoding=None, parent=None):
         super().__init__(parent)
         self.engine = engine
+        self.engine.compile_failed_callback = self._on_compile_failed
         self.input_path = input_path
         self.output_path = output_path
         self.mode = mode
@@ -42,6 +44,11 @@ class InferenceWorker(QThread):
         self._start_time = 0
         self._last_report_time = 0
         self._frames_since_report = 0
+
+    def _on_compile_failed(self, msg):
+        self.compile_failed.emit(
+            f"torch.compile failed, falling back to eager mode: {msg}"
+        )
 
     def cancel(self):
         self._cancelled = True
@@ -227,10 +234,6 @@ class InferenceWorker(QThread):
             elif ff_encoder in ("libvpx-vp9", "libaom-av1"):
                 lossless_extra = ["-lossless", "1"]
 
-        pix_fmt = "bgr0" if ff_encoder == "ffv1" else (
-            f"yuv{pix_fmt_base}" if bit_depth == 8 else f"yuv{pix_fmt_base}{bit_depth}le"
-        )
-
         input_pattern = os.path.join(out_dir, "%08d.png")
         ffmpeg_cmd = [
             "ffmpeg", "-y",
@@ -239,9 +242,14 @@ class InferenceWorker(QThread):
             "-i", input_pattern,
             "-c:v", ff_encoder,
         ]
-        if ff_encoder != "ffv1":
-            ffmpeg_cmd += ["-crf", str(crf), "-preset", preset]
-        ffmpeg_cmd += ["-pix_fmt", pix_fmt] + lossless_extra + [self.output_path]
+        if ff_encoder == "ffv1":
+            ffmpeg_cmd += ["-pix_fmt", "yuv444p", "-g", "1"]
+        else:
+            pix_fmt = (
+                f"yuv{pix_fmt_base}" if bit_depth == 8 else f"yuv{pix_fmt_base}{bit_depth}le"
+            )
+            ffmpeg_cmd += ["-crf", str(crf), "-preset", preset, "-pix_fmt", pix_fmt]
+        ffmpeg_cmd += lossless_extra + [self.output_path]
 
         try:
             ffmpeg_proc = subprocess.Popen(
@@ -256,6 +264,7 @@ class InferenceWorker(QThread):
         fps_re = re.compile(r"fps=\s*([\d.]+)")
         progress_re = re.compile(r"progress=\s*(\w+)")
         last_report = time.time()
+        encode_progress_start = time.time()
 
         for line in ffmpeg_proc.stderr:
             if self._cancelled:
@@ -267,11 +276,13 @@ class InferenceWorker(QThread):
                 pct = encoded * 100 // max(total_encode_frames, 1)
                 mf = fps_re.search(line)
                 fps_str = mf.group(1) if mf else "?"
+                encode_elapsed = time.time() - encode_progress_start
+                avg = encoded / max(encode_elapsed, 0.01)
                 now = time.time()
                 if now - last_report >= 1.0 or progress_re.search(line):
                     self.status_update.emit(
                         f"Encoding: {pct}% ({encoded}/{total_encode_frames}) | "
-                        f"{fps_str} fps"
+                        f"{fps_str} fps | avg {avg:.1f} fps"
                     )
                     last_report = now
 

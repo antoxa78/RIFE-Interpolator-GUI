@@ -17,10 +17,13 @@ def main():
 
     app.setStyle("Fusion")
 
-    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "resources", "icon.png")
-    if os.path.exists(icon_path):
-        app.setWindowIcon(QIcon(icon_path))
+    app_icon = QIcon.fromTheme("rife-interpolator")
+    if app_icon.isNull():
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "resources", "icon.png")
+        if os.path.exists(icon_path):
+            app_icon = QIcon(icon_path)
+    app.setWindowIcon(app_icon)
 
     screen = QGuiApplication.primaryScreen()
     screen_height = screen.availableGeometry().height() if screen else 768
