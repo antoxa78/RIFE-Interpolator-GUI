@@ -57,8 +57,8 @@ class InputPanel(QWidget):
         file_layout.setSpacing(2)
         self.file_list = QListWidget()
         self.file_list.setAcceptDrops(True)
-        self.file_list.setMinimumHeight(80)
-        self.file_list.setMaximumHeight(160)
+        self.file_list.setMinimumHeight(30)
+        self.file_list.setMaximumHeight(60)
         file_layout.addWidget(self.file_list)
 
         btn_layout = QHBoxLayout()
@@ -77,6 +77,7 @@ class InputPanel(QWidget):
         info_layout.setContentsMargins(4, 2, 4, 2)
         self.info_label = QLabel("No file selected")
         self.info_label.setWordWrap(True)
+        self.info_label.setMinimumHeight(60)
         info_layout.addWidget(self.info_label)
         info_group.setLayout(info_layout)
         layout.addWidget(info_group)

@@ -2,7 +2,7 @@
 set -e
 
 APP_NAME="rife-interpolator"
-VERSION="1.1.3"
+VERSION="1.1.4"
 ARCH="amd64"
 PKG_NAME="${APP_NAME}_${VERSION}_${ARCH}"
 
@@ -44,6 +44,7 @@ Architecture: amd64
 Maintainer: RIFE Interpolator Team
 Depends: python3 (>= 3.10), python3-venv, python3-pip, python3-dev, ffmpeg
 Recommends: nvidia-driver | mesa-opencl-icd
+Suggests: nvidia-cuda-toolkit
 Section: video
 Priority: optional
 Homepage: https://github.com/hzwer/ECCV2022-RIFE
@@ -165,6 +166,8 @@ if [ ! -f "$STAMP_FILE" ]; then
             echo "# NVIDIA GPU detected: ${GPU_NAME}"
             echo "# Installing PyTorch with CUDA ${GPU_CUDA}..."
             "$VENV_DIR/bin/pip" install torch torchvision --index-url "https://download.pytorch.org/whl/${CUDA_TAG}" -q 2>&1
+            echo "# Installing build tools for torch.compile (ninja)..."
+            "$VENV_DIR/bin/pip" install ninja setuptools -q 2>&1
         else
             echo "30"
             echo "# Installing PyTorch (CPU)..."
@@ -175,6 +178,23 @@ if [ ! -f "$STAMP_FILE" ]; then
         echo "# Verifying installation..."
         # Quick GPU verification
         if "$VENV_DIR/bin/python3" -c "import torch; print(torch.cuda.is_available())" 2>/dev/null | grep -q "True"; then
+            echo "90"
+            echo "# Checking torch.compile support..."
+            "$VENV_DIR/bin/python3" -c "
+import torch
+print(f'torch={torch.__version__}')
+try:
+    import triton; print(f'triton={triton.__version__}')
+except ImportError: print('triton=not found')
+m = torch.nn.Linear(4, 4).cuda()
+try:
+    m = torch.compile(m)
+    m(torch.randn(2, 4).cuda())
+    print('torch.compile: OK')
+except Exception as e:
+    print(f'torch.compile: unavailable ({e})')
+    print('App will fall back to eager mode at runtime.')
+" 2>&1
             echo "100"
             echo "# GPU support verified!"
         else
@@ -200,6 +220,8 @@ if [ ! -f "$STAMP_FILE" ]; then
             else CUDA_TAG="cu118"; fi
             echo "Installing CUDA PyTorch for ${GPU_NAME}..."
             "$VENV_DIR/bin/pip" install torch torchvision --index-url "https://download.pytorch.org/whl/${CUDA_TAG}" 2>&1
+            echo "Installing build tools for torch.compile (ninja)..."
+            "$VENV_DIR/bin/pip" install ninja setuptools 2>&1
         else
             echo "Installing CPU PyTorch..."
             "$VENV_DIR/bin/pip" install torch torchvision 2>&1

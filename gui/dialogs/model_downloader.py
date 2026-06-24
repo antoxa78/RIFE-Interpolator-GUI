@@ -101,19 +101,30 @@ class DownloadWorker(QThread):
                 )
                 return
 
-            if self.output_path.endswith(".zip") or file_size > 0 and open(self.output_path, "rb").read(2) == b"PK":
+            if self.output_path.endswith(".zip"):
+                is_zip = True
+            elif file_size > 0:
+                with open(self.output_path, "rb") as fh:
+                    is_zip = fh.read(2) == b"PK"
+            else:
+                is_zip = False
+
+            if is_zip:
                 self.status.emit("Extracting archive...")
                 import zipfile
                 extract_dir = os.path.dirname(self.output_path)
                 with zipfile.ZipFile(self.output_path, "r") as zf:
                     zf.extractall(extract_dir)
                 os.remove(self.output_path)
-                self.output_path = os.path.join(extract_dir, model["filename"])
-                if not os.path.exists(self.output_path):
-                    files = os.listdir(extract_dir)
-                    pkl_files = [f for f in files if f.endswith(".pkl")]
-                    if pkl_files:
-                        self.output_path = os.path.join(extract_dir, pkl_files[0])
+
+                # Recursively find the first .pkl file
+                pkl_files = []
+                for root, _, files in os.walk(extract_dir):
+                    for f in files:
+                        if f.endswith(".pkl"):
+                            pkl_files.append(os.path.join(root, f))
+                if pkl_files:
+                    self.output_path = pkl_files[0]
 
             self.finished.emit(self.output_path, model["name"])
 

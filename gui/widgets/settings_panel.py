@@ -54,6 +54,8 @@ class SettingsPanel(QWidget):
         self.interp_fps_label.setToolTip("Detected input video frame rate")
         interp_layout.addWidget(self.interp_fps_label)
 
+        interp_layout.addSpacing(12)
+
         lbl = QLabel("Scale:")
         interp_layout.addWidget(lbl)
         self.spin_scale = QDoubleSpinBox()
@@ -256,6 +258,41 @@ class SettingsPanel(QWidget):
             "Slightly better quality, ~2x slower.")
         perf_layout.addWidget(self.check_tta)
 
+        sep = QWidget()
+        sep.setFixedHeight(4)
+        perf_layout.addWidget(sep)
+
+        temp_dir_label = QLabel("Temp frame cache:")
+        temp_dir_label.setToolTip(
+            "Directory for caching interpolated frames as PNGs\n"
+            "during processing. Requires free space (GB+).\n"
+            "Default: system temp (/tmp).")
+        perf_layout.addWidget(temp_dir_label)
+
+        temp_dir_row = QHBoxLayout()
+        temp_dir_row.setSpacing(4)
+
+        self.edit_temp_dir = QLineEdit()
+        self.edit_temp_dir.setText(self.config.temp_dir if self.config else "")
+        self.edit_temp_dir.setPlaceholderText("Leave empty for system default")
+        self.edit_temp_dir.setToolTip(
+            "Directory for caching interpolated frames as PNGs\n"
+            "during processing. Requires free space (GB+).\n"
+            "Default: system temp (/tmp).")
+        temp_dir_row.addWidget(self.edit_temp_dir, 1)
+
+        self.btn_browse_temp = QPushButton("Browse...")
+        self.btn_browse_temp.setToolTip("Choose a directory for temp frame cache")
+        self.btn_browse_temp.clicked.connect(self._on_browse_temp)
+        temp_dir_row.addWidget(self.btn_browse_temp)
+
+        self.btn_clear_temp = QPushButton("Clear")
+        self.btn_clear_temp.setToolTip("Reset to system default")
+        self.btn_clear_temp.clicked.connect(self._on_clear_temp)
+        temp_dir_row.addWidget(self.btn_clear_temp)
+
+        perf_layout.addLayout(temp_dir_row)
+
         perf_group.setLayout(perf_layout)
         layout.addWidget(perf_group)
 
@@ -290,33 +327,6 @@ class SettingsPanel(QWidget):
 
         cpu_group.setLayout(cpu_layout)
         layout.addWidget(cpu_group)
-
-        tmp_group = QGroupBox("Temp Directory")
-        tmp_layout = QHBoxLayout()
-        tmp_layout.setContentsMargins(4, 2, 4, 2)
-        tmp_layout.setSpacing(4)
-
-        self.edit_temp_dir = QLineEdit()
-        self.edit_temp_dir.setText(self.config.temp_dir if self.config else "")
-        self.edit_temp_dir.setPlaceholderText("Leave empty for system default (/tmp)")
-        self.edit_temp_dir.setToolTip(
-            "Directory for caching interpolated frames as PNGs\n"
-            "during processing. Requires free space (GB+).\n"
-            "Default: system temp (/tmp).")
-        tmp_layout.addWidget(self.edit_temp_dir, 1)
-
-        self.btn_browse_temp = QPushButton("Browse...")
-        self.btn_browse_temp.setToolTip("Choose a directory for temp frame cache")
-        self.btn_browse_temp.clicked.connect(self._on_browse_temp)
-        tmp_layout.addWidget(self.btn_browse_temp)
-
-        self.btn_clear_temp = QPushButton("Clear")
-        self.btn_clear_temp.setToolTip("Reset to system default")
-        self.btn_clear_temp.clicked.connect(self._on_clear_temp)
-        tmp_layout.addWidget(self.btn_clear_temp)
-
-        tmp_group.setLayout(tmp_layout)
-        layout.addWidget(tmp_group)
 
         self.spin_exp.valueChanged.connect(self._emit_settings)
         self.spin_scale.valueChanged.connect(self._emit_settings)

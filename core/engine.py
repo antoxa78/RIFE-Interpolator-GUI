@@ -122,7 +122,7 @@ class InferenceEngine:
 
     def load_model(self, checkpoint_path):
         state = torch.load(checkpoint_path, map_location=self.device)
-        state = {k.replace("module.", ""): v for k, v in state.items() if "module." in k} or state
+        state = {k.removeprefix("module."): v for k, v in state.items()} or state
 
         self.flownet = IFNet()
         self.flownet.load_state_dict(state)
