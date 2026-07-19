@@ -387,6 +387,7 @@ class SettingsPanel(QWidget):
     def _on_codec_changed(self, codec):
         if codec == "ffv1":
             self.check_lossless.setChecked(True)
+        self._update_encoding_enabled()
 
     def _update_encoding_enabled(self):
         disabled = self.check_lossless.isChecked() or self.combo_codec.currentText() == "ffv1"

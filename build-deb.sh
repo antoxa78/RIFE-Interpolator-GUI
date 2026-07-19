@@ -2,7 +2,7 @@
 set -e
 
 APP_NAME="rife-interpolator"
-VERSION="1.1.4"
+VERSION="1.1.5"
 ARCH="amd64"
 PKG_NAME="${APP_NAME}_${VERSION}_${ARCH}"
 

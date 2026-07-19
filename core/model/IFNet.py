@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from .warplayer import warp
-from .refine import *
+from .refine import Contextnet, Unet
 
 def deconv(in_planes, out_planes, kernel_size=4, stride=2, padding=1):
     return nn.Sequential(
@@ -73,7 +73,7 @@ class IFNet(nn.Module):
         loss_distill = 0
         stu = [self.block0, self.block1, self.block2]
         for i in range(3):
-            if flow != None:
+            if flow is not None:
                 flow_d, mask_d = stu[i](torch.cat((img0, img1, warped_img0, warped_img1, mask), 1), flow, scale=scale[i])
                 flow = flow + flow_d
                 mask = mask + mask_d

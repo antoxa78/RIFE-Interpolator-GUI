@@ -25,6 +25,7 @@ TORCH_COMPILE_AVAILABLE = _check_torch_compile()
 class InferenceEngine:
     def __init__(self, checkpoint_path=None, device=None, fp16=False, compile_model=False):
         self.device = device if device else self._auto_device()
+        self._auto_detected_device = self.device
         self._fp16 = fp16 and self.device.type == 'cuda'
         self._compile = compile_model and self.device.type == 'cuda'
         self.flownet = None
@@ -121,7 +122,7 @@ class InferenceEngine:
             }
 
     def load_model(self, checkpoint_path):
-        state = torch.load(checkpoint_path, map_location=self.device)
+        state = torch.load(checkpoint_path, map_location=self.device, weights_only=True)
         state = {k.removeprefix("module."): v for k, v in state.items()} or state
 
         self.flownet = IFNet()

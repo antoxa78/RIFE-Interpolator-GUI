@@ -40,7 +40,7 @@ class InferenceWorker(QThread):
         self.target_fps = fps
         self.TTA = TTA
         self.encoding = encoding or {}
-        self._cancelled = False
+        self._cancel_event = threading.Event()
         self._start_time = 0
         self._last_report_time = 0
         self._frames_since_report = 0
@@ -51,7 +51,7 @@ class InferenceWorker(QThread):
         )
 
     def cancel(self):
-        self._cancelled = True
+        self._cancel_event.set()
 
     def run(self):
         try:
@@ -120,6 +120,14 @@ class InferenceWorker(QThread):
 
         write_queue = queue.Queue(maxsize=200)
         write_done = threading.Event()
+        write_error = []
+
+        def _put_frame(item):
+            try:
+                write_queue.put(item, timeout=10.0)
+            except queue.Full:
+                write_error.append("Write queue full — writer may have stalled")
+                raise
 
         def _writer_thread():
             try:
@@ -128,10 +136,11 @@ class InferenceWorker(QThread):
                     if item is None:
                         break
                     path = os.path.join(out_dir, f"{frame_counter[0]:08d}.png")
-                    cv2.imwrite(path, item)
+                    if not cv2.imwrite(path, item):
+                        write_error.append(f"Failed to write frame {frame_counter[0]} to {path}")
                     frame_counter[0] += 1
-            except Exception:
-                pass
+            except Exception as e:
+                write_error.append(f"Writer thread error: {e}")
             finally:
                 write_done.set()
 
@@ -156,7 +165,7 @@ class InferenceWorker(QThread):
                 shutil.rmtree(out_dir, ignore_errors=True)
             return
 
-        write_queue.put(prev)
+        _put_frame(prev)
 
         total_pairs = total_frames - 1
         processed = 0
@@ -170,18 +179,18 @@ class InferenceWorker(QThread):
             if not ret:
                 break
 
-            if self._cancelled:
+            if self._cancel_event.is_set():
                 break
 
             if n == 1:
                 inter = self.engine.inference_image_pair(prev, frame, self.scale, self.TTA)
-                write_queue.put(inter)
+                _put_frame(inter)
             else:
                 inters = self.engine.inference_image_pair_batch(prev, frame, timesteps, self.scale, self.TTA)
                 for inter in inters:
-                    write_queue.put(inter)
+                    _put_frame(inter)
 
-            write_queue.put(frame)
+            _put_frame(frame)
             prev = frame
             processed += 1
             self._update_progress(processed, total_pairs)
@@ -195,9 +204,18 @@ class InferenceWorker(QThread):
             self.status_update.emit("Waiting for writer to finish...")
             writer.join(timeout=60)
 
+        if write_error:
+            for err in write_error:
+                self.status_update.emit(f"Warning: {err}")
+            if not write_done.is_set():
+                self.error.emit("Writer thread stalled — processing incomplete")
+                if not png_mode:
+                    shutil.rmtree(out_dir, ignore_errors=True)
+                return
+
         elapsed = time.time() - self._start_time
 
-        if self._cancelled:
+        if self._cancel_event.is_set():
             if not png_mode:
                 shutil.rmtree(out_dir, ignore_errors=True)
             self.finished.emit("cancelled")
@@ -267,7 +285,7 @@ class InferenceWorker(QThread):
         encode_progress_start = time.time()
 
         for line in ffmpeg_proc.stderr:
-            if self._cancelled:
+            if self._cancel_event.is_set():
                 ffmpeg_proc.kill()
                 break
             m = frame_re.search(line)
@@ -286,13 +304,20 @@ class InferenceWorker(QThread):
                     )
                     last_report = now
 
-        ffmpeg_proc.wait()
-        if ffmpeg_proc.returncode != 0 and not self._cancelled:
+        try:
+            ffmpeg_proc.wait(timeout=3600)
+        except subprocess.TimeoutExpired:
+            ffmpeg_proc.kill()
+            ffmpeg_proc.wait()
+            self.error.emit("FFmpeg encoding timed out after 1 hour")
+            shutil.rmtree(out_dir, ignore_errors=True)
+            return
+        if ffmpeg_proc.returncode != 0 and not self._cancel_event.is_set():
             self.error.emit(f"FFmpeg encoding failed (code {ffmpeg_proc.returncode})")
             shutil.rmtree(out_dir, ignore_errors=True)
             return
 
-        if self._cancelled:
+        if self._cancel_event.is_set():
             shutil.rmtree(out_dir, ignore_errors=True)
             self.finished.emit("cancelled")
             return
@@ -330,15 +355,16 @@ class InferenceWorker(QThread):
 
         results = []
         for i, t in enumerate(timesteps):
-            if self._cancelled:
+            if self._cancel_event.is_set():
                 break
             inter = self.engine.inference_image_pair_batch(img0, img1, [t], self.scale, self.TTA)[0]
             path = os.path.join(out_dir, f"frame_{i:04d}.png")
-            cv2.imwrite(path, cv2.cvtColor(inter, cv2.COLOR_RGB2BGR))
+            if not cv2.imwrite(path, cv2.cvtColor(inter, cv2.COLOR_RGB2BGR)):
+                self.status_update.emit(f"Warning: failed to write {path}")
             results.append(path)
             self.progress.emit(i + 1, total)
 
-        if self._cancelled:
+        if self._cancel_event.is_set():
             self.finished.emit("cancelled")
         else:
             self.finished.emit(self.output_path)

@@ -340,6 +340,12 @@ class MainWindow(QMainWindow):
             self.engine.device = torch.device("cpu")
             if self.engine.flownet is not None:
                 self.engine.flownet.to("cpu")
+        else:
+            restored = self.engine._auto_detected_device
+            if self.engine.device.type != restored.type:
+                self.engine.device = restored
+                if self.engine.flownet is not None:
+                    self.engine.flownet.to(restored)
         torch.set_num_threads(num_threads)
 
         encoding = {

@@ -1,8 +1,6 @@
 import os
 import requests
 import re
-from html.parser import HTMLParser
-from urllib.parse import urljoin
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
     QPushButton, QGroupBox, QRadioButton, QButtonGroup,
@@ -114,6 +112,16 @@ class DownloadWorker(QThread):
                 import zipfile
                 extract_dir = os.path.dirname(self.output_path)
                 with zipfile.ZipFile(self.output_path, "r") as zf:
+                    clobbered = []
+                    for member in zf.namelist():
+                        dest = os.path.join(extract_dir, member)
+                        if os.path.exists(dest) and dest != os.path.join(extract_dir, model["filename"]):
+                            clobbered.append(member)
+                    if clobbered:
+                        self.status.emit(
+                            f"Warning: archive contains {len(clobbered)} unexpected file(s) "
+                            f"that will overwrite existing files: {', '.join(clobbered[:3])}"
+                        )
                     zf.extractall(extract_dir)
                 os.remove(self.output_path)
 
